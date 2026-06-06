@@ -89,6 +89,26 @@ public class CodeCompletionProvider {
         "front", "back", "begin", "end", "at"
     };
 
+    public static class Snippet {
+        public final String keyword;
+        public final String label;
+        public final String template;
+        public final String placeholder;
+        public Snippet(String keyword, String label, String template, String placeholder) {
+            this.keyword = keyword;
+            this.label = label;
+            this.template = template;
+            this.placeholder = placeholder;
+        }
+    }
+
+    private static final List<Snippet> SNIPPETS = new ArrayList<>();
+    static {
+        SNIPPETS.add(new Snippet("create", "⚡ create (Template)", "std::shared_ptr<Type> name = factory->createType();", "Type"));
+        SNIPPETS.add(new Snippet("for", "⚡ for (Template)", "for(std::shared_ptr<Type> item : *collection) {\n\t\n}", "Type"));
+        SNIPPETS.add(new Snippet("cast", "⚡ cast (Template)", "std::shared_ptr<Type> casted = std::dynamic_pointer_cast<Type>(var);", "Type"));
+    }
+
     public CodeCompletionProvider(StyledText styledText, String language) {
         this.styledText = styledText;
         this.darkTheme = isDarkTheme(styledText.getDisplay());
@@ -331,6 +351,17 @@ public class CodeCompletionProvider {
         boolean isMemberAccess = isMemberAccessContext();
         Set<String> allowedMembers = null;
         
+        // Add Snippets at the very top of the list!
+        if (!isMemberAccess && currentLangDef != null && currentLangDef.name.equals("C++")) {
+            for (Snippet snip : SNIPPETS) {
+                if (snip.keyword.toLowerCase().startsWith(lower)) {
+                    if (!matches.contains(snip.label)) {
+                        matches.add(snip.label);
+                    }
+                }
+            }
+        }
+        
         if (isMemberAccess) {
             allowedMembers = new TreeSet<>();
             for (Map<String, String> members : typeMembers.values()) {
@@ -357,7 +388,10 @@ public class CodeCompletionProvider {
         for (String word : completionWords) {
             if (word.toLowerCase().startsWith(lower)) {
                 if (allowedMembers != null && !allowedMembers.contains(word)) continue;
-                matches.add(word);
+                if (!isMemberAccess && word.startsWith("create")) continue;
+                if (!matches.contains(word)) {
+                    matches.add(word);
+                }
                 if (matches.size() >= MAX_PROPOSALS) break;
             }
         }
@@ -367,7 +401,8 @@ public class CodeCompletionProvider {
             String[] docWords = styledText.getText().split("[^a-zA-Z0-9_]+");
             for (String dw : docWords) {
                 if (dw.length() >= AUTO_TRIGGER_LENGTH && dw.toLowerCase().startsWith(lower) && !matches.contains(dw)) {
-                    if (allowedMembers != null && !allowedMembers.contains(dw)) continue;
+                    if (allowedMembers != null && !allowedMembers.contains(dw) && !dw.startsWith("create")) continue;
+                    if (!isMemberAccess && dw.startsWith("create")) continue;
                     matches.add(dw);
                     if (matches.size() >= MAX_PROPOSALS) break;
                 }
@@ -675,8 +710,26 @@ public class CodeCompletionProvider {
 
         inserting = true;
         try {
-            styledText.replaceTextRange(prefixStart, caretOffset - prefixStart, selected);
-            styledText.setCaretOffset(prefixStart + selected.length());
+            Snippet matchedSnippet = null;
+            for (Snippet s : SNIPPETS) {
+                if (s.label.equals(selected)) {
+                    matchedSnippet = s;
+                    break;
+                }
+            }
+            
+            if (matchedSnippet != null) {
+                styledText.replaceTextRange(prefixStart, caretOffset - prefixStart, matchedSnippet.template);
+                int placeholderIndex = matchedSnippet.template.indexOf(matchedSnippet.placeholder);
+                if (placeholderIndex >= 0) {
+                    styledText.setSelection(prefixStart + placeholderIndex, prefixStart + placeholderIndex + matchedSnippet.placeholder.length());
+                } else {
+                    styledText.setCaretOffset(prefixStart + matchedSnippet.template.length());
+                }
+            } else {
+                styledText.replaceTextRange(prefixStart, caretOffset - prefixStart, selected);
+                styledText.setCaretOffset(prefixStart + selected.length());
+            }
         } finally {
             inserting = false;
         }
