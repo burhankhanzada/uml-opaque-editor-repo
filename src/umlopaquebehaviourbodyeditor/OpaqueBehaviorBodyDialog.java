@@ -6,6 +6,13 @@ import java.util.Set;
 import java.util.Map;
 
 import org.eclipse.jface.dialogs.TitleAreaDialog;
+import org.eclipse.jface.text.Document;
+import org.eclipse.jface.text.source.SourceViewer;
+import org.eclipse.jface.text.source.SourceViewerConfiguration;
+import org.eclipse.jface.text.presentation.IPresentationReconciler;
+import org.eclipse.tm4e.ui.text.TMPresentationReconciler;
+import org.eclipse.tm4e.core.grammar.IGrammar;
+import org.eclipse.tm4e.registry.TMEclipseRegistryPlugin;
 import org.eclipse.jface.viewers.ArrayContentProvider;
 import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.viewers.StructuredSelection;
@@ -39,6 +46,7 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
     private int selectedIndex = -1;
 
     private TableViewer entryViewer;
+    private SourceViewer sourceViewer;
     private StyledText codeText;
     private Combo languageCombo;
     private Button addButton;
@@ -46,7 +54,7 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
     private Button upButton;
     private Button downButton;
     private Font monoFont;
-    private SyntaxHighlighter highlighter;
+    private TMPresentationReconciler tmReconciler;
     private CodeCompletionProvider completionProvider;
     private final Set<String> contextTypes;
     private final Set<String> autocompleteWords;
@@ -142,8 +150,8 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
         if (monoFont != null && !monoFont.isDisposed()) {
             monoFont.dispose();
         }
-        if (highlighter != null) {
-            highlighter.dispose();
+        if (tmReconciler != null) {
+            tmReconciler.uninstall();
         }
         if (completionProvider != null) {
             completionProvider.dispose();
@@ -208,7 +216,7 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
         languageCombo.addModifyListener(e -> {
             if (selectedIndex >= 0 && selectedIndex < entries.size() && !suppressListener) {
                 entries.get(selectedIndex).language = languageCombo.getText();
-                highlighter.setLanguage(languageCombo.getText());
+                updateSyntaxLanguage(languageCombo.getText());
                 if (completionProvider != null) completionProvider.setLanguage(languageCombo.getText());
                 entryViewer.refresh();
             }
@@ -219,7 +227,10 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
         Label lbl = new Label(parent, SWT.NONE);
         lbl.setText("Body code:");
 
-        codeText = new StyledText(parent, SWT.BORDER | SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL);
+        sourceViewer = new SourceViewer(parent, null, SWT.BORDER | SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL);
+        sourceViewer.setDocument(new Document(""));
+        codeText = sourceViewer.getTextWidget();
+
         GridData gd = new GridData(SWT.FILL, SWT.FILL, true, true);
         gd.heightHint = 350;
         gd.widthHint  = 600;
@@ -279,10 +290,17 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
             if (separatorColor != null) separatorColor.dispose();
         });
 
-        // Syntax highlighter
-        highlighter = new SyntaxHighlighter(codeText, "");
-        if (contextTypes != null) {
-            highlighter.setExtraTypes(contextTypes);
+        // TM4E Reconciler
+        try {
+            tmReconciler = new TMPresentationReconciler();
+            sourceViewer.configure(new SourceViewerConfiguration() {
+                @Override
+                public IPresentationReconciler getPresentationReconciler(org.eclipse.jface.text.source.ISourceViewer sourceViewer) {
+                    return tmReconciler;
+                }
+            });
+        } catch (Throwable t) {
+            t.printStackTrace();
         }
 
         // Code Completion
@@ -301,9 +319,25 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
                     entries.get(selectedIndex).body = codeText.getText();
                     entryViewer.update(entries.get(selectedIndex), null);
                 }
-                highlighter.highlight();
             }
         });
+    }
+
+    private void updateSyntaxLanguage(String lang) {
+        if (tmReconciler == null) return;
+        try {
+            String lower = lang == null ? "" : lang.toLowerCase();
+            String ext = "txt";
+            if (lower.startsWith("c++") || lower.equals("cpp")) ext = "cpp";
+            else if (lower.equals("java")) ext = "java";
+            else if (lower.equals("python") || lower.equals("py")) ext = "py";
+            else if (lower.equals("c") || lower.matches("c[0-9]+")) ext = "c";
+            
+            IGrammar grammar = TMEclipseRegistryPlugin.getGrammarRegistryManager().getGrammarForFileExtension(ext);
+            tmReconciler.setGrammar(grammar);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
     }
 
     // ---- Entry operations ----
@@ -362,12 +396,12 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
         BodyEntry entry = entries.get(index);
         suppressListener = true;
         try {
-            codeText.setText(entry.body);
+            sourceViewer.getDocument().set(entry.body);
             languageCombo.setText(entry.language);
         } finally {
             suppressListener = false;
         }
-        highlighter.setLanguage(entry.language);
+        updateSyntaxLanguage(entry.language);
         if (completionProvider != null) completionProvider.setLanguage(entry.language);
         updateButtonStates();
     }
