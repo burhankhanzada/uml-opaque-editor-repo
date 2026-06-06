@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+
+   <!-- Command definition -->
+   <extension point="org.eclipse.ui.commands">
+      <command
+            id="umlopaquebehaviourbodyeditor.editBody"
+            name="Edit Body with Code Editor"/>
+   </extension>
+
+   <!-- Handler — always enabled, no conditions -->
+   <extension point="org.eclipse.ui.handlers">
+      <handler
+            commandId="umlopaquebehaviourbodyeditor.editBody"
+            class="umlopaquebehaviourbodyeditor.OpenBodyEditorHandler"/>
+   </extension>
+
+   <!-- Context menu — always visible on any right-click, no conditions -->
+   <extension point="org.eclipse.ui.menus">
+      <menuContribution
+            allPopups="true"
+            locationURI="popup:org.eclipse.ui.popup.any?after=additions">
+         <command
+               commandId="umlopaquebehaviourbodyeditor.editBody"
+               label="Edit Body with Code Editor..."
+               style="push"/>
+      </menuContribution>
+   </extension>
+
+</plugin>

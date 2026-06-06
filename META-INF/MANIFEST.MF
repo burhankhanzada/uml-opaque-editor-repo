@@ -1,0 +1,16 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: UML OpaqueBehaviour Body Editor
+Bundle-SymbolicName: UMLOpaqueBehaviourBodyEditor;singleton:=true
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: umlopaquebehaviourbodyeditor.Activator
+Bundle-Vendor: Custom
+Require-Bundle: org.eclipse.ui,
+ org.eclipse.core.runtime,
+ org.eclipse.emf.ecore,
+ org.eclipse.emf.common,
+ org.eclipse.emf.edit,
+ org.eclipse.uml2.uml
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: UMLOpaqueBehaviourBodyEditor
+Bundle-ActivationPolicy: lazy
