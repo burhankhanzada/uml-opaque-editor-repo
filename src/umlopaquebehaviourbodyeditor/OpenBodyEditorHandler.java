@@ -18,6 +18,11 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.handlers.HandlerUtil;
 import org.eclipse.uml2.uml.OpaqueBehavior;
 import org.eclipse.uml2.uml.UMLPackage;
+import org.eclipse.emf.common.util.TreeIterator;
+import org.eclipse.emf.ecore.EObject;
+import java.util.Set;
+import java.util.HashSet;
+import org.eclipse.uml2.uml.UMLPackage;
 
 /**
  * Command handler that opens the {@link OpaqueBehaviorBodyDialog}
@@ -62,8 +67,23 @@ public class OpenBodyEditorHandler extends AbstractHandler {
         List<String> languages = new ArrayList<>(behavior.getLanguages());
         String       name      = behavior.getName();
 
+        // ---- collect model context types ----
+        Set<String> contextTypes = new HashSet<>();
+        if (behavior.getModel() != null) {
+            TreeIterator<EObject> it = behavior.getModel().eAllContents();
+            while (it.hasNext()) {
+                EObject obj = it.next();
+                if (obj instanceof org.eclipse.uml2.uml.Type t) {
+                    String typeName = t.getName();
+                    if (typeName != null && !typeName.isBlank()) {
+                        contextTypes.add(typeName);
+                    }
+                }
+            }
+        }
+
         OpaqueBehaviorBodyDialog dialog =
-                new OpaqueBehaviorBodyDialog(shell, bodies, languages, name);
+                new OpaqueBehaviorBodyDialog(shell, bodies, languages, name, contextTypes);
 
         if (dialog.open() != Window.OK) {
             return null;

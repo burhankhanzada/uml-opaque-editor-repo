@@ -2,6 +2,7 @@ package umlopaquebehaviourbodyeditor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.viewers.ArrayContentProvider;
@@ -45,16 +46,20 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
     private Button downButton;
     private Font monoFont;
     private SyntaxHighlighter highlighter;
+    private CodeCompletionProvider completionProvider;
+    private final Set<String> contextTypes;
 
     private boolean suppressListener = false;
 
     public OpaqueBehaviorBodyDialog(Shell parentShell,
                                     List<String> bodies,
                                     List<String> languages,
-                                    String name) {
+                                    String name,
+                                    Set<String> contextTypes) {
         super(parentShell);
         setShellStyle(getShellStyle() | SWT.RESIZE | SWT.MAX);
         this.behaviourName = name;
+        this.contextTypes = contextTypes;
 
         for (int i = 0; i < bodies.size(); i++) {
             String lang = (i < languages.size()) ? languages.get(i) : "";
@@ -133,6 +138,9 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
         if (highlighter != null) {
             highlighter.dispose();
         }
+        if (completionProvider != null) {
+            completionProvider.dispose();
+        }
         return super.close();
     }
 
@@ -194,6 +202,7 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
             if (selectedIndex >= 0 && selectedIndex < entries.size() && !suppressListener) {
                 entries.get(selectedIndex).language = languageCombo.getText();
                 highlighter.setLanguage(languageCombo.getText());
+                if (completionProvider != null) completionProvider.setLanguage(languageCombo.getText());
                 entryViewer.refresh();
             }
         });
@@ -226,6 +235,15 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
 
         // Syntax highlighter
         highlighter = new SyntaxHighlighter(codeText, "");
+        if (contextTypes != null) {
+            highlighter.setExtraTypes(contextTypes);
+        }
+
+        // Code Completion
+        completionProvider = new CodeCompletionProvider(codeText, "");
+        if (contextTypes != null) {
+            completionProvider.setExtraWords(contextTypes);
+        }
 
         // Re-highlight on every text change
         codeText.addModifyListener(e -> {
@@ -301,6 +319,7 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
             suppressListener = false;
         }
         highlighter.setLanguage(entry.language);
+        if (completionProvider != null) completionProvider.setLanguage(entry.language);
         updateButtonStates();
     }
 

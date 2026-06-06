@@ -37,6 +37,15 @@ public class SyntaxHighlighter {
     // Lookup sets for fast matching
     private Set<String> keywordSet = new HashSet<>();
     private Set<String> typeSet = new HashSet<>();
+    private Set<String> extraTypeSet = new HashSet<>();
+
+    public void setExtraTypes(Set<String> extraTypes) {
+        extraTypeSet.clear();
+        if (extraTypes != null) {
+            extraTypeSet.addAll(extraTypes);
+        }
+        highlight();
+    }
 
     public SyntaxHighlighter(StyledText styledText, String language) {
         this.styledText = styledText;
@@ -180,7 +189,7 @@ public class SyntaxHighlighter {
                 String word = text.substring(i, end);
                 if (keywordSet.contains(word)) {
                     ranges.add(styleRange(i, end - i, keywordColor, SWT.BOLD));
-                } else if (typeSet.contains(word)) {
+                } else if (typeSet.contains(word) || extraTypeSet.contains(word)) {
                     ranges.add(styleRange(i, end - i, typeColor, SWT.NONE));
                 }
                 i = end;
