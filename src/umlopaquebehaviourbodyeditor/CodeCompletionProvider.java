@@ -21,6 +21,14 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableItem;
 
+import org.eclipse.emf.ecore.EObject;
+import org.eclipse.jface.viewers.ISelectionProvider;
+import org.eclipse.jface.viewers.StructuredSelection;
+import org.eclipse.swt.events.MouseAdapter;
+import org.eclipse.swt.events.MouseEvent;
+import org.eclipse.swt.events.KeyAdapter;
+import org.eclipse.swt.events.KeyEvent;
+
 import umlopaquebehaviourbodyeditor.LanguageMapping.LanguageDef;
 
 /**
@@ -46,6 +54,10 @@ public class CodeCompletionProvider {
     private TreeSet<String> extraWords = new TreeSet<>();
     private LanguageDef currentLangDef;
     private Map<String, Map<String, String>> typeMembers = new HashMap<>();
+    
+    private Map<String, EObject> globalElements = new HashMap<>();
+    private Map<String, Map<String, EObject>> classElements = new HashMap<>();
+    private ISelectionProvider selectionProvider;
 
     /** Tracks whether we're currently inserting a completion (to avoid re-triggering). */
     private boolean inserting = false;
@@ -92,6 +104,14 @@ public class CodeCompletionProvider {
         if (typeMembers != null) {
             this.typeMembers.putAll(typeMembers);
         }
+    }
+
+    public void setHyperlinkElements(Map<String, EObject> global, Map<String, Map<String, EObject>> classes, ISelectionProvider provider) {
+        this.globalElements.clear();
+        this.classElements.clear();
+        if (global != null) this.globalElements.putAll(global);
+        if (classes != null) this.classElements.putAll(classes);
+        this.selectionProvider = provider;
     }
 
     private void rebuildCompletionWords() {
@@ -187,8 +207,10 @@ public class CodeCompletionProvider {
             }
         });
 
-        // ---- MDE4CPP Smart Pointers: Hover tooltips ----
+        // ---- Hyperlink and Tooltip logic ----
         styledText.addMouseMoveListener(e -> {
+            boolean isMod = (e.stateMask & SWT.MOD1) != 0;
+            boolean hasHyperlink = false;
             try {
                 int offset = styledText.getOffsetAtLocation(new Point(e.x, e.y));
                 String text = styledText.getText();
@@ -198,20 +220,68 @@ public class CodeCompletionProvider {
                 while (end < text.length() && Character.isJavaIdentifierPart(text.charAt(end))) end++;
                 if (start < end) {
                     String word = text.substring(start, end);
+                    String textBefore = text.substring(0, start).stripTrailing();
+                    
+                    EObject hyperlinkObj = resolveHyperlink(word, textBefore);
+                    if (hyperlinkObj != null) {
+                        hasHyperlink = true;
+                    }
+
                     String type = resolveVariableType(word);
                     if (type != null && currentLangDef != null && currentLangDef.name.equals("C++")) {
-                        // Special MDE4CPP tooltip
                         styledText.setToolTipText("std::shared_ptr<" + type + ">");
-                        return;
                     } else if (type != null) {
                         styledText.setToolTipText(type);
-                        return;
+                    } else {
+                        styledText.setToolTipText(null);
                     }
+                } else {
+                    styledText.setToolTipText(null);
                 }
             } catch (IllegalArgumentException ex) {
-                // Mouse is not over valid text
+                styledText.setToolTipText(null);
             }
-            styledText.setToolTipText(null);
+
+            if (isMod && hasHyperlink) {
+                styledText.setCursor(styledText.getDisplay().getSystemCursor(SWT.CURSOR_HAND));
+            } else {
+                styledText.setCursor(null);
+            }
+        });
+
+        styledText.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyReleased(KeyEvent e) {
+                if ((e.keyCode & SWT.MODIFIER_MASK) == SWT.MOD1 || e.keyCode == SWT.COMMAND || e.keyCode == SWT.CTRL) {
+                    styledText.setCursor(null);
+                }
+            }
+        });
+
+        styledText.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseDown(MouseEvent e) {
+                if ((e.stateMask & SWT.MOD1) != 0 && selectionProvider != null) {
+                    try {
+                        int offset = styledText.getOffsetAtLocation(new Point(e.x, e.y));
+                        String text = styledText.getText();
+                        int start = offset;
+                        int end = offset;
+                        while (start > 0 && Character.isJavaIdentifierPart(text.charAt(start - 1))) start--;
+                        while (end < text.length() && Character.isJavaIdentifierPart(text.charAt(end))) end++;
+                        if (start < end) {
+                            String word = text.substring(start, end);
+                            String textBefore = text.substring(0, start).stripTrailing();
+                            EObject obj = resolveHyperlink(word, textBefore);
+                            if (obj != null) {
+                                selectionProvider.setSelection(new StructuredSelection(obj));
+                            }
+                        }
+                    } catch (IllegalArgumentException ex) {
+                        // ignore
+                    }
+                }
+            }
         });
     }
 
@@ -387,6 +457,21 @@ public class CodeCompletionProvider {
         }
         
         return currentType;
+    }
+
+    private EObject resolveHyperlink(String word, String textBeforeCaret) {
+        String contextType = resolveContextTypeFromText(textBeforeCaret);
+        if (contextType != null) {
+            if (contextType.startsWith("std::shared_ptr<")) {
+                contextType = contextType.substring(16, contextType.length() - 1);
+            }
+            if (classElements.containsKey(contextType)) {
+                return classElements.get(contextType).get(word);
+            }
+        } else {
+            return globalElements.get(word);
+        }
+        return null;
     }
 
     private String resolveVariableType(String variableName) {

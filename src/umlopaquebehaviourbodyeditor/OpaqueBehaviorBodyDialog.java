@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.Map;
 
+import org.eclipse.emf.ecore.EObject;
+import org.eclipse.jface.viewers.ISelectionProvider;
+
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.text.Document;
 import org.eclipse.jface.text.source.SourceViewer;
@@ -59,6 +62,9 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
     private final Set<String> contextTypes;
     private final Set<String> autocompleteWords;
     private final Map<String, Map<String, String>> typeMembers;
+    private final Map<String, EObject> globalElements;
+    private final Map<String, Map<String, EObject>> classElements;
+    private final ISelectionProvider selectionProvider;
 
     private boolean suppressListener = false;
 
@@ -68,13 +74,19 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
                                     String name,
                                     Set<String> contextTypes,
                                     Set<String> autocompleteWords,
-                                    Map<String, Map<String, String>> typeMembers) {
+                                    Map<String, Map<String, String>> typeMembers,
+                                    Map<String, EObject> globalElements,
+                                    Map<String, Map<String, EObject>> classElements,
+                                    ISelectionProvider selectionProvider) {
         super(parentShell);
         setShellStyle(getShellStyle() | SWT.RESIZE | SWT.MAX);
         this.behaviourName = name;
         this.contextTypes = contextTypes;
         this.autocompleteWords = autocompleteWords;
         this.typeMembers = typeMembers;
+        this.globalElements = globalElements;
+        this.classElements = classElements;
+        this.selectionProvider = selectionProvider;
 
         for (int i = 0; i < bodies.size(); i++) {
             String lang = (i < languages.size()) ? languages.get(i) : "";
@@ -311,6 +323,7 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
         if (typeMembers != null) {
             completionProvider.setTypeMembers(typeMembers);
         }
+        completionProvider.setHyperlinkElements(globalElements, classElements, selectionProvider);
 
         // Re-highlight on every text change
         codeText.addModifyListener(e -> {
