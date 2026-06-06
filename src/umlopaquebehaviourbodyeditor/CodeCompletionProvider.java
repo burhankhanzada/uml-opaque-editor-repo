@@ -45,7 +45,7 @@ public class CodeCompletionProvider {
     private TreeSet<String> completionWords = new TreeSet<>();
     private TreeSet<String> extraWords = new TreeSet<>();
     private LanguageDef currentLangDef;
-    private Map<String, Set<String>> typeMembers = new HashMap<>();
+    private Map<String, Map<String, String>> typeMembers = new HashMap<>();
 
     /** Tracks whether we're currently inserting a completion (to avoid re-triggering). */
     private boolean inserting = false;
@@ -58,7 +58,12 @@ public class CodeCompletionProvider {
     
     private static final String[] COMMON_METHODS = {
         "add", "remove", "clear", "size", "empty", "front", "back", "insert", "erase", 
-        "push_back", "pop_back", "begin", "end", "find", "count", "length", "substr"
+        "push_back", "pop_back", "begin", "end", "find", "count", "length", "substr", "at"
+    };
+
+    private static final String[] MDE4CPP_COLLECTION_METHODS = {
+        "add", "insert", "remove", "erase", "clear", "size", "empty", 
+        "front", "back", "begin", "end", "at"
     };
 
     public CodeCompletionProvider(StyledText styledText, String language) {
@@ -82,7 +87,7 @@ public class CodeCompletionProvider {
         rebuildCompletionWords();
     }
 
-    public void setTypeMembers(Map<String, Set<String>> typeMembers) {
+    public void setTypeMembers(Map<String, Map<String, String>> typeMembers) {
         this.typeMembers.clear();
         if (typeMembers != null) {
             this.typeMembers.putAll(typeMembers);
@@ -113,9 +118,9 @@ public class CodeCompletionProvider {
         styledText.addVerifyKeyListener(e -> {
             // 1. Manual trigger (Ctrl+Space)
             // Note: On Mac, Ctrl+Space might be intercepted by OS. 
-            if ((e.stateMask & SWT.CTRL) != 0 && e.keyCode == ' ') {
+            if ((e.stateMask & SWT.CTRL) != 0 && (e.character == ' ' || e.keyCode == 32 || e.keyCode == SWT.SPACE)) {
                 e.doit = false;
-                showCompletions();
+                showCompletions(true);
                 return;
             }
 
@@ -148,8 +153,10 @@ public class CodeCompletionProvider {
         styledText.addModifyListener(e -> {
             if (inserting) return;
             String prefix = getCurrentPrefix();
-            if (prefix.length() >= AUTO_TRIGGER_LENGTH) {
-                showCompletions();
+            boolean isMemberAccess = isMemberAccessContext();
+            
+            if (prefix.length() >= AUTO_TRIGGER_LENGTH || isMemberAccess) {
+                showCompletions(false);
             } else {
                 dismissPopup();
             }
@@ -173,9 +180,11 @@ public class CodeCompletionProvider {
     // Completion logic
     // ------------------------------------------------------------------
 
-    private void showCompletions() {
+    private void showCompletions(boolean explicit) {
         String prefix = getCurrentPrefix();
-        if (prefix.isEmpty()) {
+        boolean isMemberAccess = isMemberAccessContext();
+        
+        if (prefix.isEmpty() && !explicit && !isMemberAccess) {
             dismissPopup();
             return;
         }
@@ -204,18 +213,23 @@ public class CodeCompletionProvider {
         
         if (isMemberAccess) {
             allowedMembers = new TreeSet<>();
-            for (Set<String> members : typeMembers.values()) {
-                allowedMembers.addAll(members);
+            for (Map<String, String> members : typeMembers.values()) {
+                allowedMembers.addAll(members.keySet());
             }
             if (currentLangDef != null && currentLangDef.name.equals("C++")) {
                 for (String m : COMMON_METHODS) allowedMembers.add(m);
             }
             
-            String variable = getMemberAccessVariable();
-            if (variable != null) {
-                String type = resolveVariableType(variable);
-                if (type != null && typeMembers.containsKey(type)) {
-                    allowedMembers = typeMembers.get(type);
+            String contextType = resolveContextType();
+            if (contextType != null) {
+                // If it's a known MDE4CPP collection, supply collection methods
+                if (contextType.startsWith("Bag<") || contextType.startsWith("Set<") || 
+                    contextType.startsWith("OrderedSet<") || contextType.startsWith("Sequence<") ||
+                    contextType.startsWith("Union<") || contextType.startsWith("SubsetUnion<")) {
+                    allowedMembers.clear(); // Only suggest collection methods
+                    for (String m : MDE4CPP_COLLECTION_METHODS) allowedMembers.add(m);
+                } else if (typeMembers.containsKey(contextType)) {
+                    allowedMembers = new TreeSet<>(typeMembers.get(contextType).keySet());
                 }
             }
         }
@@ -268,47 +282,83 @@ public class CodeCompletionProvider {
         return false;
     }
 
-    private String getMemberAccessVariable() {
+    private String resolveContextType() {
         int caretOffset = styledText.getCaretOffset();
         String text = styledText.getText();
         int start = caretOffset;
         while (start > 0 && Character.isJavaIdentifierPart(text.charAt(start - 1))) {
             start--;
         }
-        int ptr = start - 1;
-        while (ptr >= 0 && Character.isWhitespace(text.charAt(ptr))) ptr--;
+        String textBeforeCaret = text.substring(0, start).stripTrailing();
         
-        boolean isMemberAccess = false;
-        if (ptr >= 0 && text.charAt(ptr) == '.') {
-            isMemberAccess = true;
-            ptr--;
-        } else if (ptr >= 1 && text.charAt(ptr) == '>' && text.charAt(ptr-1) == '-') {
-            isMemberAccess = true;
-            ptr -= 2;
+        if (textBeforeCaret.endsWith("->")) {
+            textBeforeCaret = textBeforeCaret.substring(0, textBeforeCaret.length() - 2);
+        } else if (textBeforeCaret.endsWith(".")) {
+            textBeforeCaret = textBeforeCaret.substring(0, textBeforeCaret.length() - 1);
+        } else {
+            return null;
         }
         
-        if (isMemberAccess) {
-            while (ptr >= 0 && Character.isWhitespace(text.charAt(ptr))) ptr--;
-            int varEnd = ptr + 1;
-            int varStart = varEnd;
-            while (varStart > 0 && Character.isJavaIdentifierPart(text.charAt(varStart - 1))) {
-                varStart--;
+        textBeforeCaret = textBeforeCaret.stripTrailing();
+        
+        // Find the start of the expression.
+        StringBuilder exp = new StringBuilder();
+        int parens = 0;
+        for (int i = textBeforeCaret.length() - 1; i >= 0; i--) {
+            char c = textBeforeCaret.charAt(i);
+            if (c == ')') parens++;
+            else if (c == '(') parens--;
+            else if (parens == 0 && !Character.isJavaIdentifierPart(c) && c != '-' && c != '>' && c != '.') {
+                break;
             }
-            if (varStart < varEnd) {
-                return text.substring(varStart, varEnd);
+            exp.insert(0, c);
+        }
+        
+        String expression = exp.toString();
+        String[] parts = expression.split("->|\\.");
+        if (parts.length == 0) return null;
+        
+        String currentType = null;
+        for (int i = 0; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if (part.endsWith("()")) {
+                part = part.substring(0, part.length() - 2);
+            }
+            
+            if (i == 0) {
+                // Base variable
+                currentType = resolveVariableType(part);
+            } else {
+                // Method or property on currentType
+                if (currentType != null && typeMembers.containsKey(currentType)) {
+                    Map<String, String> members = typeMembers.get(currentType);
+                    currentType = members.get(part); // Get the return type!
+                } else {
+                    currentType = null;
+                }
+            }
+            
+            // Unwrap std::shared_ptr if present
+            if (currentType != null && currentType.startsWith("std::shared_ptr<")) {
+                currentType = currentType.substring(16, currentType.length() - 1);
             }
         }
-        return null;
+        
+        return currentType;
     }
 
     private String resolveVariableType(String variableName) {
+        if (variableName == null || variableName.isBlank()) return null;
         String text = styledText.getText();
         
-        java.util.regex.Pattern p1 = java.util.regex.Pattern.compile("std::(?:weak|shared|unique)_ptr<\\s*([A-Za-z0-9_:]+)\\s*>\\s+" + java.util.regex.Pattern.quote(variableName) + "\\b");
+        java.util.regex.Pattern p1 = java.util.regex.Pattern.compile("std::(?:weak|shared|unique)_ptr<\\s*([A-Za-z0-9_:<>,\\s]+)\\s*>\\s+" + java.util.regex.Pattern.quote(variableName) + "\\b");
         java.util.regex.Matcher m1 = p1.matcher(text);
         if (m1.find()) {
-            String type = m1.group(1);
-            return type.substring(type.lastIndexOf(':') + 1);
+            String type = m1.group(1).trim();
+            if (!type.contains("<")) { // Simple type
+                return type.substring(type.lastIndexOf(':') + 1);
+            }
+            return type; // e.g. Bag<Author>
         }
         
         java.util.regex.Pattern p2 = java.util.regex.Pattern.compile("\\b([A-Za-z0-9_:]+)\\s*\\**\\s+" + java.util.regex.Pattern.quote(variableName) + "\\b");

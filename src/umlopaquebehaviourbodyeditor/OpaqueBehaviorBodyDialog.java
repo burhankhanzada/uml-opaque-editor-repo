@@ -58,7 +58,7 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
     private CodeCompletionProvider completionProvider;
     private final Set<String> contextTypes;
     private final Set<String> autocompleteWords;
-    private final Map<String, Set<String>> typeMembers;
+    private final Map<String, Map<String, String>> typeMembers;
 
     private boolean suppressListener = false;
 
@@ -68,7 +68,7 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
                                     String name,
                                     Set<String> contextTypes,
                                     Set<String> autocompleteWords,
-                                    Map<String, Set<String>> typeMembers) {
+                                    Map<String, Map<String, String>> typeMembers) {
         super(parentShell);
         setShellStyle(getShellStyle() | SWT.RESIZE | SWT.MAX);
         this.behaviourName = name;

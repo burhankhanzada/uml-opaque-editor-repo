@@ -72,7 +72,7 @@ public class OpenBodyEditorHandler extends AbstractHandler {
         // ---- collect model context types and completion words ----
         Set<String> contextTypes = new HashSet<>();
         Set<String> autocompleteWords = new HashSet<>();
-        Map<String, Set<String>> typeMembers = new HashMap<>();
+        Map<String, Map<String, String>> typeMembers = new HashMap<>();
 
         if (behavior.getModel() != null) {
             TreeIterator<EObject> it = behavior.getModel().eAllContents();
@@ -89,20 +89,39 @@ public class OpenBodyEditorHandler extends AbstractHandler {
                 if (obj instanceof org.eclipse.uml2.uml.Classifier classifier) {
                     String className = classifier.getName();
                     if (className != null && !className.isBlank()) {
-                        Set<String> members = typeMembers.computeIfAbsent(className, k -> new HashSet<>());
+                        Map<String, String> members = typeMembers.computeIfAbsent(className, k -> new HashMap<>());
                         for (org.eclipse.uml2.uml.Property p : classifier.getAllAttributes()) {
                             String pName = p.getName();
                             if (pName != null && !pName.isBlank()) {
-                                members.add(pName);
+                                String typeName = p.getType() != null ? p.getType().getName() : "Object";
+                                String retType = typeName;
+                                if (p.isMultivalued()) {
+                                    String col = "Bag";
+                                    if (p.isOrdered() && p.isUnique()) col = "OrderedSet";
+                                    else if (p.isOrdered() && !p.isUnique()) col = "Sequence";
+                                    else if (!p.isOrdered() && p.isUnique()) col = "Set";
+                                    retType = col + "<" + typeName + ">";
+                                }
+                                members.put(pName, retType);
                                 String cap = pName.substring(0, 1).toUpperCase() + pName.substring(1);
-                                members.add("get" + cap);
-                                members.add("set" + cap);
+                                members.put("get" + cap, retType);
+                                members.put("set" + cap, "void");
                             }
                         }
                         for (org.eclipse.uml2.uml.Operation op : classifier.getAllOperations()) {
                             String opName = op.getName();
                             if (opName != null && !opName.isBlank()) {
-                                members.add(opName);
+                                String typeName = op.getType() != null ? op.getType().getName() : "void";
+                                String retType = typeName;
+                                org.eclipse.uml2.uml.Parameter retParam = op.getReturnResult();
+                                if (retParam != null && retParam.isMultivalued()) {
+                                    String col = "Bag";
+                                    if (retParam.isOrdered() && retParam.isUnique()) col = "OrderedSet";
+                                    else if (retParam.isOrdered() && !retParam.isUnique()) col = "Sequence";
+                                    else if (!retParam.isOrdered() && retParam.isUnique()) col = "Set";
+                                    retType = col + "<" + typeName + ">";
+                                }
+                                members.put(opName, retType);
                             }
                         }
                     }
