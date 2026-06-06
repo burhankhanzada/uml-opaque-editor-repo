@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.Map;
+import java.util.HashMap;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
@@ -43,6 +45,7 @@ public class CodeCompletionProvider {
     private TreeSet<String> completionWords = new TreeSet<>();
     private TreeSet<String> extraWords = new TreeSet<>();
     private LanguageDef currentLangDef;
+    private Map<String, Set<String>> typeMembers = new HashMap<>();
 
     /** Tracks whether we're currently inserting a completion (to avoid re-triggering). */
     private boolean inserting = false;
@@ -72,6 +75,13 @@ public class CodeCompletionProvider {
             this.extraWords.addAll(extraWords);
         }
         rebuildCompletionWords();
+    }
+
+    public void setTypeMembers(Map<String, Set<String>> typeMembers) {
+        this.typeMembers.clear();
+        if (typeMembers != null) {
+            this.typeMembers.putAll(typeMembers);
+        }
     }
 
     private void rebuildCompletionWords() {
@@ -184,8 +194,19 @@ public class CodeCompletionProvider {
         List<String> matches = new ArrayList<>();
         String lower = prefix.toLowerCase();
 
+        String variable = getMemberAccessVariable();
+        Set<String> allowedMembers = null;
+        
+        if (variable != null) {
+            String type = resolveVariableType(variable);
+            if (type != null && typeMembers.containsKey(type)) {
+                allowedMembers = typeMembers.get(type);
+            }
+        }
+
         for (String word : completionWords) {
             if (word.toLowerCase().startsWith(lower)) {
+                if (allowedMembers != null && !allowedMembers.contains(word)) continue;
                 matches.add(word);
                 if (matches.size() >= MAX_PROPOSALS) break;
             }
@@ -196,6 +217,7 @@ public class CodeCompletionProvider {
             String[] docWords = styledText.getText().split("[^a-zA-Z0-9_]+");
             for (String dw : docWords) {
                 if (dw.length() >= AUTO_TRIGGER_LENGTH && dw.toLowerCase().startsWith(lower) && !matches.contains(dw)) {
+                    if (allowedMembers != null && !allowedMembers.contains(dw)) continue;
                     matches.add(dw);
                     if (matches.size() >= MAX_PROPOSALS) break;
                 }
@@ -203,6 +225,61 @@ public class CodeCompletionProvider {
         }
         
         return matches;
+    }
+
+    private String getMemberAccessVariable() {
+        int caretOffset = styledText.getCaretOffset();
+        String text = styledText.getText();
+        int start = caretOffset;
+        while (start > 0 && Character.isJavaIdentifierPart(text.charAt(start - 1))) {
+            start--;
+        }
+        int ptr = start - 1;
+        while (ptr >= 0 && Character.isWhitespace(text.charAt(ptr))) ptr--;
+        
+        boolean isMemberAccess = false;
+        if (ptr >= 0 && text.charAt(ptr) == '.') {
+            isMemberAccess = true;
+            ptr--;
+        } else if (ptr >= 1 && text.charAt(ptr) == '>' && text.charAt(ptr-1) == '-') {
+            isMemberAccess = true;
+            ptr -= 2;
+        }
+        
+        if (isMemberAccess) {
+            while (ptr >= 0 && Character.isWhitespace(text.charAt(ptr))) ptr--;
+            int varEnd = ptr + 1;
+            int varStart = varEnd;
+            while (varStart > 0 && Character.isJavaIdentifierPart(text.charAt(varStart - 1))) {
+                varStart--;
+            }
+            if (varStart < varEnd) {
+                return text.substring(varStart, varEnd);
+            }
+        }
+        return null;
+    }
+
+    private String resolveVariableType(String variableName) {
+        String text = styledText.getText();
+        
+        java.util.regex.Pattern p1 = java.util.regex.Pattern.compile("std::(?:weak|shared|unique)_ptr<\\s*([A-Za-z0-9_:]+)\\s*>\\s+" + java.util.regex.Pattern.quote(variableName) + "\\b");
+        java.util.regex.Matcher m1 = p1.matcher(text);
+        if (m1.find()) {
+            String type = m1.group(1);
+            return type.substring(type.lastIndexOf(':') + 1);
+        }
+        
+        java.util.regex.Pattern p2 = java.util.regex.Pattern.compile("\\b([A-Za-z0-9_:]+)\\s*\\**\\s+" + java.util.regex.Pattern.quote(variableName) + "\\b");
+        java.util.regex.Matcher m2 = p2.matcher(text);
+        while (m2.find()) {
+            String type = m2.group(1);
+            if (!type.equals("return") && !type.equals("new") && !type.equals("delete")) {
+                return type.substring(type.lastIndexOf(':') + 1);
+            }
+        }
+        
+        return null;
     }
 
     /** Extracts the identifier being typed at the current caret position. */

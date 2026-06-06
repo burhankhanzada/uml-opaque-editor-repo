@@ -22,6 +22,8 @@ import org.eclipse.emf.common.util.TreeIterator;
 import org.eclipse.emf.ecore.EObject;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.HashMap;
 import org.eclipse.uml2.uml.UMLPackage;
 
 /**
@@ -70,6 +72,7 @@ public class OpenBodyEditorHandler extends AbstractHandler {
         // ---- collect model context types and completion words ----
         Set<String> contextTypes = new HashSet<>();
         Set<String> autocompleteWords = new HashSet<>();
+        Map<String, Set<String>> typeMembers = new HashMap<>();
 
         if (behavior.getModel() != null) {
             TreeIterator<EObject> it = behavior.getModel().eAllContents();
@@ -82,6 +85,29 @@ public class OpenBodyEditorHandler extends AbstractHandler {
                         autocompleteWords.add(typeName);
                     }
                 }
+                
+                if (obj instanceof org.eclipse.uml2.uml.Classifier classifier) {
+                    String className = classifier.getName();
+                    if (className != null && !className.isBlank()) {
+                        Set<String> members = typeMembers.computeIfAbsent(className, k -> new HashSet<>());
+                        for (org.eclipse.uml2.uml.Property p : classifier.getAllAttributes()) {
+                            String pName = p.getName();
+                            if (pName != null && !pName.isBlank()) {
+                                members.add(pName);
+                                String cap = pName.substring(0, 1).toUpperCase() + pName.substring(1);
+                                members.add("get" + cap);
+                                members.add("set" + cap);
+                            }
+                        }
+                        for (org.eclipse.uml2.uml.Operation op : classifier.getAllOperations()) {
+                            String opName = op.getName();
+                            if (opName != null && !opName.isBlank()) {
+                                members.add(opName);
+                            }
+                        }
+                    }
+                }
+                
                 if (obj instanceof org.eclipse.uml2.uml.Operation op) {
                     String opName = op.getName();
                     if (opName != null && !opName.isBlank()) {
@@ -109,7 +135,7 @@ public class OpenBodyEditorHandler extends AbstractHandler {
         }
 
         OpaqueBehaviorBodyDialog dialog =
-                new OpaqueBehaviorBodyDialog(shell, bodies, languages, name, contextTypes, autocompleteWords);
+                new OpaqueBehaviorBodyDialog(shell, bodies, languages, name, contextTypes, autocompleteWords, typeMembers);
 
         if (dialog.open() != Window.OK) {
             return null;

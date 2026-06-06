@@ -3,6 +3,7 @@ package umlopaquebehaviourbodyeditor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
 
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.viewers.ArrayContentProvider;
@@ -49,6 +50,7 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
     private CodeCompletionProvider completionProvider;
     private final Set<String> contextTypes;
     private final Set<String> autocompleteWords;
+    private final Map<String, Set<String>> typeMembers;
 
     private boolean suppressListener = false;
 
@@ -57,12 +59,14 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
                                     List<String> languages,
                                     String name,
                                     Set<String> contextTypes,
-                                    Set<String> autocompleteWords) {
+                                    Set<String> autocompleteWords,
+                                    Map<String, Set<String>> typeMembers) {
         super(parentShell);
         setShellStyle(getShellStyle() | SWT.RESIZE | SWT.MAX);
         this.behaviourName = name;
         this.contextTypes = contextTypes;
         this.autocompleteWords = autocompleteWords;
+        this.typeMembers = typeMembers;
 
         for (int i = 0; i < bodies.size(); i++) {
             String lang = (i < languages.size()) ? languages.get(i) : "";
@@ -285,6 +289,9 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
         completionProvider = new CodeCompletionProvider(codeText, "");
         if (autocompleteWords != null) {
             completionProvider.setExtraWords(autocompleteWords);
+        }
+        if (typeMembers != null) {
+            completionProvider.setTypeMembers(typeMembers);
         }
 
         // Re-highlight on every text change
