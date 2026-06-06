@@ -67,8 +67,10 @@ public class OpenBodyEditorHandler extends AbstractHandler {
         List<String> languages = new ArrayList<>(behavior.getLanguages());
         String       name      = behavior.getName();
 
-        // ---- collect model context types ----
+        // ---- collect model context types and completion words ----
         Set<String> contextTypes = new HashSet<>();
+        Set<String> autocompleteWords = new HashSet<>();
+
         if (behavior.getModel() != null) {
             TreeIterator<EObject> it = behavior.getModel().eAllContents();
             while (it.hasNext()) {
@@ -77,13 +79,37 @@ public class OpenBodyEditorHandler extends AbstractHandler {
                     String typeName = t.getName();
                     if (typeName != null && !typeName.isBlank()) {
                         contextTypes.add(typeName);
+                        autocompleteWords.add(typeName);
+                    }
+                }
+                if (obj instanceof org.eclipse.uml2.uml.Operation op) {
+                    String opName = op.getName();
+                    if (opName != null && !opName.isBlank()) {
+                        autocompleteWords.add(opName);
+                    }
+                }
+                if (obj instanceof org.eclipse.uml2.uml.Property p) {
+                    String pName = p.getName();
+                    if (pName != null && !pName.isBlank()) {
+                        autocompleteWords.add(pName);
+                        String cap = pName.substring(0, 1).toUpperCase() + pName.substring(1);
+                        autocompleteWords.add("get" + cap);
+                        autocompleteWords.add("set" + cap);
+                        
+                        if (p.getType() != null && p.getOwner() instanceof org.eclipse.uml2.uml.NamedElement owner) {
+                            String typeName = p.getType().getName();
+                            String ownerName = owner.getName();
+                            if (typeName != null && ownerName != null) {
+                                autocompleteWords.add("create" + typeName + "_as_" + pName + "_in_" + ownerName);
+                            }
+                        }
                     }
                 }
             }
         }
 
         OpaqueBehaviorBodyDialog dialog =
-                new OpaqueBehaviorBodyDialog(shell, bodies, languages, name, contextTypes);
+                new OpaqueBehaviorBodyDialog(shell, bodies, languages, name, contextTypes, autocompleteWords);
 
         if (dialog.open() != Window.OK) {
             return null;

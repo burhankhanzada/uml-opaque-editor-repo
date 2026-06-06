@@ -190,6 +190,18 @@ public class CodeCompletionProvider {
                 if (matches.size() >= MAX_PROPOSALS) break;
             }
         }
+        
+        // Also harvest words from the document dynamically
+        if (matches.size() < MAX_PROPOSALS) {
+            String[] docWords = styledText.getText().split("[^a-zA-Z0-9_]+");
+            for (String dw : docWords) {
+                if (dw.length() >= AUTO_TRIGGER_LENGTH && dw.toLowerCase().startsWith(lower) && !matches.contains(dw)) {
+                    matches.add(dw);
+                    if (matches.size() >= MAX_PROPOSALS) break;
+                }
+            }
+        }
+        
         return matches;
     }
 

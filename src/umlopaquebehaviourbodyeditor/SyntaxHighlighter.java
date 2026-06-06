@@ -33,6 +33,7 @@ public class SyntaxHighlighter {
     private final Color commentColor;
     private final Color numberColor;
     private final Color preprocessorColor;
+    private final Color methodColor;
 
     // Lookup sets for fast matching
     private Set<String> keywordSet = new HashSet<>();
@@ -58,6 +59,7 @@ public class SyntaxHighlighter {
             commentColor      = new Color(new RGB(106, 153,  85));
             numberColor       = new Color(new RGB(181, 206, 168));
             preprocessorColor = new Color(new RGB(155, 155, 155));
+            methodColor       = new Color(new RGB(220, 220, 170));
         } else {
             keywordColor      = new Color(new RGB(  0,   0, 255));
             typeColor         = new Color(new RGB( 43, 145, 175));
@@ -65,6 +67,7 @@ public class SyntaxHighlighter {
             commentColor      = new Color(new RGB(  0, 128,   0));
             numberColor       = new Color(new RGB(  9, 134,  88));
             preprocessorColor = new Color(new RGB(128, 128, 128));
+            methodColor       = new Color(new RGB(121,  94,  38));
         }
 
         setLanguage(language);
@@ -191,6 +194,15 @@ public class SyntaxHighlighter {
                     ranges.add(styleRange(i, end - i, keywordColor, SWT.BOLD));
                 } else if (typeSet.contains(word) || extraTypeSet.contains(word)) {
                     ranges.add(styleRange(i, end - i, typeColor, SWT.NONE));
+                } else {
+                    // Check if it's a method call (followed by '(' ignoring whitespace)
+                    int next = end;
+                    while (next < len && Character.isWhitespace(text.charAt(next))) {
+                        next++;
+                    }
+                    if (next < len && text.charAt(next) == '(') {
+                        ranges.add(styleRange(i, end - i, methodColor, SWT.NONE));
+                    }
                 }
                 i = end;
                 continue;
@@ -210,6 +222,7 @@ public class SyntaxHighlighter {
         commentColor.dispose();
         numberColor.dispose();
         preprocessorColor.dispose();
+        methodColor.dispose();
     }
 
     // ---- Helpers ----

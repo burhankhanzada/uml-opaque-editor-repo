@@ -48,6 +48,7 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
     private SyntaxHighlighter highlighter;
     private CodeCompletionProvider completionProvider;
     private final Set<String> contextTypes;
+    private final Set<String> autocompleteWords;
 
     private boolean suppressListener = false;
 
@@ -55,11 +56,13 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
                                     List<String> bodies,
                                     List<String> languages,
                                     String name,
-                                    Set<String> contextTypes) {
+                                    Set<String> contextTypes,
+                                    Set<String> autocompleteWords) {
         super(parentShell);
         setShellStyle(getShellStyle() | SWT.RESIZE | SWT.MAX);
         this.behaviourName = name;
         this.contextTypes = contextTypes;
+        this.autocompleteWords = autocompleteWords;
 
         for (int i = 0; i < bodies.size(); i++) {
             String lang = (i < languages.size()) ? languages.get(i) : "";
@@ -241,8 +244,8 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
 
         // Code Completion
         completionProvider = new CodeCompletionProvider(codeText, "");
-        if (contextTypes != null) {
-            completionProvider.setExtraWords(contextTypes);
+        if (autocompleteWords != null) {
+            completionProvider.setExtraWords(autocompleteWords);
         }
 
         // Re-highlight on every text change
