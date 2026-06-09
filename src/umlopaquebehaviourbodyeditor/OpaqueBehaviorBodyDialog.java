@@ -259,6 +259,26 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
             }
         });
 
+        setupEditorFontAndColors(parent.getDisplay());
+        setupLineNumbers();
+        setupSyntaxHighlighting();
+
+        // Code Completion
+        completionProvider = new CodeCompletionProvider(codeText, "", dictionary);
+        completionProvider.setHyperlinkElements(selectionProvider);
+
+        // Re-highlight on every text change
+        codeText.addModifyListener(e -> {
+            if (!suppressListener) {
+                if (selectedIndex >= 0 && selectedIndex < entries.size()) {
+                    entries.get(selectedIndex).body = codeText.getText();
+                    entryViewer.update(entries.get(selectedIndex), null);
+                }
+            }
+        });
+    }
+
+    private void setupEditorFontAndColors(Display display) {
         // Monospace font
         Display display = parent.getDisplay();
         monoFont = new Font(display, new FontData("Menlo", 12, SWT.NORMAL));
@@ -285,27 +305,9 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
             separatorColor = new Color(new RGB(200, 200, 200));
         }
 
-        // Draw line numbers inside the reserved left margin
-        codeText.addPaintListener(e -> {
-            int topIndex = codeText.getTopIndex();
-            int lineHeight = codeText.getLineHeight();
-            int visibleLines = (codeText.getClientArea().height + lineHeight - 1) / lineHeight;
-            int bottomIndex = Math.min(topIndex + visibleLines, codeText.getLineCount() - 1);
-            
-            e.gc.setForeground(lineNumColor);
-            
-            for (int i = topIndex; i <= bottomIndex; i++) {
-                int linePixel = codeText.getLinePixel(i);
-                String num = String.valueOf(i + 1);
-                Point extent = e.gc.stringExtent(num);
-                // Right align within the left 45px margin area
-                e.gc.drawString(num, 38 - extent.x, linePixel, true);
-            }
-            
-            // Draw a separator line between numbers and text
-            e.gc.setForeground(separatorColor);
-            e.gc.drawLine(42, 0, 42, codeText.getClientArea().height);
-        });
+        umlTypeColor = new org.eclipse.swt.graphics.Color(codeText.getDisplay(), 78, 201, 176);
+        methodColor = new org.eclipse.swt.graphics.Color(codeText.getDisplay(), 220, 220, 170);
+        variableColor = new org.eclipse.swt.graphics.Color(codeText.getDisplay(), 156, 220, 254);
 
         // Clean up colors
         codeText.addDisposeListener(e -> {
@@ -315,11 +317,21 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
             if (methodColor != null) methodColor.dispose();
             if (variableColor != null) variableColor.dispose();
         });
+        
+        // Save these for line number painter
+        codeText.setData("lineNumColor", lineNumColor);
+        codeText.setData("separatorColor", separatorColor);
+    }
 
-        umlTypeColor = new org.eclipse.swt.graphics.Color(codeText.getDisplay(), 78, 201, 176);
-        methodColor = new org.eclipse.swt.graphics.Color(codeText.getDisplay(), 220, 220, 170);
-        variableColor = new org.eclipse.swt.graphics.Color(codeText.getDisplay(), 156, 220, 254);
+    private void setupLineNumbers() {
+        Color lineNumColor = (Color) codeText.getData("lineNumColor");
+        Color separatorColor = (Color) codeText.getData("separatorColor");
+        
+        // Draw line numbers inside the reserved left margin
+        codeText.addPaintListener(new LineNumberPainter(codeText, lineNumColor, separatorColor));
+    }
 
+    private void setupSyntaxHighlighting() {
         // Initialize TM4E Reconciler for generic syntax highlighting (keywords, strings, etc.)
         try {
             tmReconciler = new TMPresentationReconciler();
@@ -332,10 +344,6 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
         } catch (Throwable t) {
             t.printStackTrace();
         }
-
-        // Code Completion
-        completionProvider = new CodeCompletionProvider(codeText, "", dictionary);
-        completionProvider.setHyperlinkElements(selectionProvider);
 
         if (sourceViewer instanceof org.eclipse.jface.text.ITextViewerExtension4 ext4) {
             // Apply semantic highlighting (custom colors for UML types, methods, and variables)
@@ -376,16 +384,6 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
                 }
             });
         }
-
-        // Re-highlight on every text change
-        codeText.addModifyListener(e -> {
-            if (!suppressListener) {
-                if (selectedIndex >= 0 && selectedIndex < entries.size()) {
-                    entries.get(selectedIndex).body = codeText.getText();
-                    entryViewer.update(entries.get(selectedIndex), null);
-                }
-            }
-        });
     }
 
     private void updateSyntaxLanguage(String lang) {

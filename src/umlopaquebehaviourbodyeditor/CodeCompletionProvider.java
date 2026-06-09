@@ -103,7 +103,15 @@ public class CodeCompletionProvider {
     // ------------------------------------------------------------------
 
     private void attachListeners() {
-        // ---- Intercept keys before StyledText processes them ----
+        setupKeyboardTriggers();
+        setupAutoPopupTriggers();
+        setupFocusDismissal();
+        setupSmartPointers();
+        setupHoverTooltips();
+        setupHyperlinkNavigation();
+    }
+
+    private void setupKeyboardTriggers() {
         styledText.addVerifyKeyListener(e -> {
             // 1. Manual trigger (Ctrl+Space)
             // Note: On Mac, Ctrl+Space might be intercepted by OS. 
@@ -137,7 +145,9 @@ public class CodeCompletionProvider {
                 }
             }
         });
+    }
 
+    private void setupAutoPopupTriggers() {
         // ---- Auto-trigger on typing ----
         styledText.addModifyListener(e -> {
             if (inserting) return;
@@ -150,7 +160,9 @@ public class CodeCompletionProvider {
                 dismissPopup();
             }
         });
+    }
 
+    private void setupFocusDismissal() {
         // ---- Dismiss on focus loss ----
         styledText.addFocusListener(new FocusAdapter() {
             @Override
@@ -163,19 +175,23 @@ public class CodeCompletionProvider {
                 });
             }
         });
+    }
 
+    private void setupSmartPointers() {
         // ---- MDE4CPP Smart Pointers: auto '.' to '->' ----
         styledText.addVerifyListener(e -> {
             if (inserting) return;
             if (e.text.equals(".") && currentLangDef != null && currentLangDef.name.equals("C++")) {
                 String textBefore = styledText.getText().substring(0, e.start) + ".";
-                String type = resolveContextTypeFromText(textBefore);
+                String type = CppExpressionParser.resolveContextTypeFromText(textBefore, dictionary, styledText.getText());
                 if (type != null) {
                     e.text = "->";
                 }
             }
         });
+    }
 
+    private void setupHoverTooltips() {
         // ---- Hyperlink and Tooltip logic ----
         styledText.addMouseMoveListener(e -> {
             boolean isMod = (e.stateMask & SWT.MOD1) != 0;
@@ -217,8 +233,9 @@ public class CodeCompletionProvider {
                 styledText.setCursor(null);
             }
         });
+    }
 
-        styledText.addKeyListener(new KeyAdapter() {
+    private void setupHyperlinkNavigation() {
             @Override
             public void keyReleased(KeyEvent e) {
                 if ((e.keyCode & SWT.MODIFIER_MASK) == SWT.MOD1 || e.keyCode == SWT.COMMAND || e.keyCode == SWT.CTRL) {
@@ -400,72 +417,13 @@ public class CodeCompletionProvider {
             start--;
         }
         String textBeforeCaret = text.substring(0, start).stripTrailing();
-        return resolveContextTypeFromText(textBeforeCaret);
+        return CppExpressionParser.resolveContextTypeFromText(textBeforeCaret, dictionary, text);
     }
 
-    /**
-     * Parses the C++ expression preceding the caret to determine its return type.
-     * e.g., `library->getBooks()->front()->` returns the type of `Book`.
-     */
-    private String resolveContextTypeFromText(String textBeforeCaret) {
-        if (textBeforeCaret.endsWith("->")) {
-            textBeforeCaret = textBeforeCaret.substring(0, textBeforeCaret.length() - 2);
-        } else if (textBeforeCaret.endsWith(".")) {
-            textBeforeCaret = textBeforeCaret.substring(0, textBeforeCaret.length() - 1);
-        } else {
-            return null;
-        }
-        
-        textBeforeCaret = textBeforeCaret.stripTrailing();
-        
-        // Find the start of the expression.
-        StringBuilder exp = new StringBuilder();
-        int parens = 0;
-        for (int i = textBeforeCaret.length() - 1; i >= 0; i--) {
-            char c = textBeforeCaret.charAt(i);
-            if (c == ')') parens++;
-            else if (c == '(') parens--;
-            else if (parens == 0 && !Character.isJavaIdentifierPart(c) && c != '-' && c != '>' && c != '.') {
-                break;
-            }
-            exp.insert(0, c);
-        }
-        
-        String expression = exp.toString();
-        String[] parts = expression.split("->|\\.");
-        if (parts.length == 0) return null;
-        
-        String currentType = null;
-        for (int i = 0; i < parts.length; i++) {
-            String part = parts[i].trim();
-            if (part.endsWith("()")) {
-                part = part.substring(0, part.length() - 2);
-            }
-            
-            if (i == 0) {
-                // Base variable
-                currentType = resolveVariableType(part);
-            } else {
-                // Method or property on currentType
-                if (currentType != null && dictionary.typeMembers.containsKey(currentType)) {
-                    Map<String, String> members = dictionary.typeMembers.get(currentType);
-                    currentType = members.get(part); // Get the return type!
-                } else {
-                    currentType = null;
-                }
-            }
-            
-            // Unwrap std::shared_ptr if present
-            if (currentType != null && currentType.startsWith("std::shared_ptr<")) {
-                currentType = currentType.substring(16, currentType.length() - 1);
-            }
-        }
-        
-        return currentType;
-    }
+
 
     private EObject resolveHyperlink(String word, String textBeforeCaret) {
-        String contextType = resolveContextTypeFromText(textBeforeCaret);
+        String contextType = CppExpressionParser.resolveContextTypeFromText(textBeforeCaret, dictionary, styledText.getText());
         if (contextType != null) {
             if (contextType.startsWith("std::shared_ptr<")) {
                 contextType = contextType.substring(16, contextType.length() - 1);
@@ -480,29 +438,7 @@ public class CodeCompletionProvider {
     }
 
     private String resolveVariableType(String variableName) {
-        if (variableName == null || variableName.isBlank()) return null;
-        String text = styledText.getText();
-        
-        java.util.regex.Pattern p1 = java.util.regex.Pattern.compile("std::(?:weak|shared|unique)_ptr<\\s*([A-Za-z0-9_:<>,\\s]+)\\s*>\\s+" + java.util.regex.Pattern.quote(variableName) + "\\b");
-        java.util.regex.Matcher m1 = p1.matcher(text);
-        if (m1.find()) {
-            String type = m1.group(1).trim();
-            if (!type.contains("<")) { // Simple type
-                return type.substring(type.lastIndexOf(':') + 1);
-            }
-            return type; // e.g. Bag<Author>
-        }
-        
-        java.util.regex.Pattern p2 = java.util.regex.Pattern.compile("\\b([A-Za-z0-9_:]+)\\s*\\**\\s+" + java.util.regex.Pattern.quote(variableName) + "\\b");
-        java.util.regex.Matcher m2 = p2.matcher(text);
-        while (m2.find()) {
-            String type = m2.group(1);
-            if (!type.equals("return") && !type.equals("new") && !type.equals("delete")) {
-                return type.substring(type.lastIndexOf(':') + 1);
-            }
-        }
-        
-        return null;
+        return CppExpressionParser.resolveVariableType(variableName, styledText.getText());
     }
 
     /** Extracts the identifier being typed at the current caret position. */
