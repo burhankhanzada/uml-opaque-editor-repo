@@ -248,6 +248,13 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
         gd.widthHint  = 600;
         codeText.setLayoutData(gd);
 
+        // Prevent ESC from closing the dialog while in the code editor
+        codeText.addTraverseListener(e -> {
+            if (e.detail == SWT.TRAVERSE_ESCAPE) {
+                e.doit = false;
+            }
+        });
+
         // Monospace font
         Display display = parent.getDisplay();
         monoFont = new Font(display, new FontData("Menlo", 12, SWT.NORMAL));
