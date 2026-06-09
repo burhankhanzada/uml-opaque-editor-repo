@@ -95,21 +95,6 @@ public final class LanguageMapping {
             },
             "//", "/*", "*/", "#"));
 
-        // ---- OCL ----
-        LANGUAGES.put("OCL", new LanguageDef("OCL", "source.ocl", ".ocl",
-            new String[] {
-                "context", "inv", "pre", "post", "body", "init",
-                "derive", "def", "let", "in", "if", "then", "else",
-                "endif", "and", "or", "not", "xor", "implies",
-                "self", "result", "null", "true", "false", "invalid",
-                "OclVoid", "OclInvalid", "OclAny"
-            },
-            new String[] {
-                "Boolean", "Integer", "Real", "String", "UnlimitedNatural",
-                "Collection", "Set", "OrderedSet", "Bag", "Sequence",
-                "Tuple", "OclMessage"
-            },
-            "--", "/*", "*/", null));
     }
 
     /**
@@ -141,7 +126,6 @@ public final class LanguageMapping {
             case "cpp", "c++11", "c++14", "c++17", "c++20", "c++23" -> LANGUAGES.get("C++");
             case "java" -> LANGUAGES.get("Java");
             case "c89", "c99", "c11", "c17", "c23" -> LANGUAGES.get("C");
-            case "ocl" -> LANGUAGES.get("OCL");
             default -> PLAIN_TEXT;
         };
     }
