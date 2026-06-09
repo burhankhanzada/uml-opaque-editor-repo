@@ -222,7 +222,7 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
         Label lbl = new Label(row, SWT.NONE);
         lbl.setText("Language:");
 
-        languageCombo = new Combo(row, SWT.DROP_DOWN);
+        languageCombo = new Combo(row, SWT.DROP_DOWN | SWT.READ_ONLY);
         languageCombo.setItems(LanguageMapping.getAllLanguageNames());
         languageCombo.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         languageCombo.addModifyListener(e -> {
