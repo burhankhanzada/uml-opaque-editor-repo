@@ -10,7 +10,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>com.burhankhanzada.opaquebehavioureditor</artifactId>
-    <packaging>eclipse-plugin</packaging>
+    <artifactId>com.burhankhanzada.opaquebehavioureditor.repository</artifactId>
+    <packaging>eclipse-repository</packaging>
 
 </project>
