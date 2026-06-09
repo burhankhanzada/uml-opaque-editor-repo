@@ -24,7 +24,15 @@
          <command
                commandId="umlopaquebehaviourbodyeditor.editBody"
                label="Edit Body with Code Editor..."
-               style="push"/>
+               style="push">
+            <visibleWhen checkEnabled="false">
+               <with variable="activeMenuSelection">
+                  <iterate ifEmpty="false" operator="and">
+                     <instanceof value="org.eclipse.uml2.uml.OpaqueBehavior"/>
+                  </iterate>
+               </with>
+            </visibleWhen>
+         </command>
       </menuContribution>
    </extension>
 
