@@ -95,26 +95,6 @@ public final class LanguageMapping {
             },
             "//", "/*", "*/", "#"));
 
-        // ---- Python ----
-        LANGUAGES.put("Python", new LanguageDef("Python", "source.python", ".py",
-            new String[] {
-                "and", "as", "assert", "async", "await", "break",
-                "class", "continue", "def", "del", "elif", "else",
-                "except", "False", "finally", "for", "from", "global",
-                "if", "import", "in", "is", "lambda", "None",
-                "nonlocal", "not", "or", "pass", "raise", "return",
-                "try", "True", "while", "with", "yield"
-            },
-            new String[] {
-                "int", "float", "str", "bool", "list", "dict", "set",
-                "tuple", "bytes", "bytearray", "memoryview", "range",
-                "type", "object", "Exception", "BaseException",
-                "ValueError", "TypeError", "KeyError", "IndexError",
-                "AttributeError", "IOError", "OSError", "RuntimeError",
-                "StopIteration", "GeneratorExit", "NotImplementedError"
-            },
-            "#", null, null, null));
-
         // ---- OCL ----
         LANGUAGES.put("OCL", new LanguageDef("OCL", "source.ocl", ".ocl",
             new String[] {
@@ -161,7 +141,6 @@ public final class LanguageMapping {
             case "cpp", "c++11", "c++14", "c++17", "c++20", "c++23" -> LANGUAGES.get("C++");
             case "java" -> LANGUAGES.get("Java");
             case "c89", "c99", "c11", "c17", "c23" -> LANGUAGES.get("C");
-            case "python", "python3", "py" -> LANGUAGES.get("Python");
             case "ocl" -> LANGUAGES.get("OCL");
             default -> PLAIN_TEXT;
         };

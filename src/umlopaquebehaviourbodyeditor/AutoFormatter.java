@@ -11,17 +11,13 @@ public class AutoFormatter {
      * Formats the given code snippet based on the specified language.
      * 
      * @param code     The raw code text.
-     * @param language The language of the code (e.g. "C++", "Java", "Python").
+     * @param language The language of the code (e.g. "C++", "Java", "C").
      * @return The properly indented code string.
      */
     public static String format(String code, String language) {
         if (code == null || code.isBlank()) return "";
         
         String lang = language == null ? "" : language.toLowerCase();
-        // Python relies on semantic whitespace. A naive brace formatter will destroy it.
-        if (lang.equals("python") || lang.equals("py")) {
-            return code;
-        }
 
         StringBuilder result = new StringBuilder();
         int indent = 0;
