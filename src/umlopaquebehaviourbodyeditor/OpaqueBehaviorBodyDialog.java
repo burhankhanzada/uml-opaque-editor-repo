@@ -417,7 +417,7 @@ public class OpaqueBehaviorBodyDialog extends TitleAreaDialog {
 
     private void onAdd() {
         commitCurrentEditor();
-        BodyEntry newEntry = new BodyEntry("C++", "");
+        BodyEntry newEntry = new BodyEntry("CPP", "");
         entries.add(newEntry);
         entryViewer.refresh();
         entryViewer.setSelection(new StructuredSelection(newEntry), true);

@@ -18,8 +18,8 @@ public final class LanguageMapping {
     private static final Map<String, LanguageDef> LANGUAGES = new LinkedHashMap<>();
 
     static {
-        // ---- C++ ----
-        LANGUAGES.put("C++", new LanguageDef("C++", "source.cpp", ".cpp",
+        // ---- CPP ----
+        LANGUAGES.put("CPP", new LanguageDef("CPP", "source.cpp", ".cpp",
             new String[] {
                 "alignas", "alignof", "and", "and_eq", "asm", "auto",
                 "bitand", "bitor", "bool", "break", "case", "catch",
@@ -101,7 +101,7 @@ public final class LanguageMapping {
      * Returns the language definition for the given language name.
      * Performs case-insensitive matching and common alias resolution.
      *
-     * @param language the language name from the UML model (e.g. "C++", "cpp", "Java")
+     * @param language the language name from the UML model (e.g. "CPP", "cpp", "Java")
      * @return the matching LanguageDef, or a plain-text fallback if not found
      */
     public static LanguageDef getLanguageDef(String language) {
@@ -123,7 +123,7 @@ public final class LanguageMapping {
         // Common aliases
         String lower = language.toLowerCase();
         return switch (lower) {
-            case "cpp", "c++11", "c++14", "c++17", "c++20", "c++23" -> LANGUAGES.get("C++");
+            case "cpp", "c++", "c++11", "c++14", "c++17", "c++20", "c++23" -> LANGUAGES.get("CPP");
             case "java" -> LANGUAGES.get("Java");
             case "c89", "c99", "c11", "c17", "c23" -> LANGUAGES.get("C");
             default -> PLAIN_TEXT;

@@ -11,7 +11,7 @@ public class AutoFormatter {
      * Formats the given code snippet based on the specified language.
      * 
      * @param code     The raw code text.
-     * @param language The language of the code (e.g. "C++", "Java", "C").
+     * @param language The language of the code (e.g. "CPP", "Java", "C").
      * @return The properly indented code string.
      */
     public static String format(String code, String language) {

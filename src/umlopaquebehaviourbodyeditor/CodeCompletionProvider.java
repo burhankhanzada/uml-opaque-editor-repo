@@ -181,7 +181,7 @@ public class CodeCompletionProvider {
         // ---- MDE4CPP Smart Pointers: auto '.' to '->' ----
         styledText.addVerifyListener(e -> {
             if (inserting) return;
-            if (e.text.equals(".") && currentLangDef != null && currentLangDef.name.equals("C++")) {
+            if (e.text.equals(".") && currentLangDef != null && currentLangDef.name.equals("CPP")) {
                 String textBefore = styledText.getText().substring(0, e.start) + ".";
                 String type = CppExpressionParser.resolveContextTypeFromText(textBefore, dictionary, styledText.getText());
                 if (type != null) {
@@ -213,7 +213,7 @@ public class CodeCompletionProvider {
                     }
 
                     String type = resolveVariableType(word);
-                    if (type != null && currentLangDef != null && currentLangDef.name.equals("C++")) {
+                    if (type != null && currentLangDef != null && currentLangDef.name.equals("CPP")) {
                         styledText.setToolTipText("std::shared_ptr<" + type + ">");
                     } else if (type != null) {
                         styledText.setToolTipText(type);
@@ -316,7 +316,7 @@ public class CodeCompletionProvider {
         Set<String> allowedMembers = null;
         
         // Add Snippets at the very top of the list!
-        if (currentLangDef != null && currentLangDef.name.equals("C++") && !isMemberAccess) {
+        if (currentLangDef != null && currentLangDef.name.equals("CPP") && !isMemberAccess) {
             for (SnippetLibrary.Snippet snip : SnippetLibrary.SNIPPETS) {
                 if (snip.keyword.toLowerCase().startsWith(lower)) {
                     if (!matches.contains(snip.label)) {
@@ -333,7 +333,7 @@ public class CodeCompletionProvider {
             for (Map<String, String> members : dictionary.typeMembers.values()) {
                 allowedMembers.addAll(members.keySet());
             }
-            if (currentLangDef != null && currentLangDef.name.equals("C++")) {
+            if (currentLangDef != null && currentLangDef.name.equals("CPP")) {
                 for (String m : UmlModelValidator.COMMON_METHODS) allowedMembers.add(m);
             }
             
@@ -552,7 +552,7 @@ public class CodeCompletionProvider {
         inserting = true;
         try {
             SnippetLibrary.Snippet matchedSnippet = null;
-            if (currentLangDef != null && currentLangDef.name.equals("C++")) {
+            if (currentLangDef != null && currentLangDef.name.equals("CPP")) {
                 for (SnippetLibrary.Snippet s : SnippetLibrary.SNIPPETS) {
                     if (s.label.equals(selected)) {
                         matchedSnippet = s;

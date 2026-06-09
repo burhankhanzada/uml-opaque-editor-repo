@@ -25,7 +25,7 @@ public class UmlModelValidator {
 
     public List<TextRange> validateUMLMemberAccess(String text, LanguageDef currentLangDef) {
         List<TextRange> errors = new ArrayList<>();
-        if (currentLangDef == null || !currentLangDef.name.equals("C++")) {
+        if (currentLangDef == null || !currentLangDef.name.equals("CPP")) {
             return errors;
         }
         

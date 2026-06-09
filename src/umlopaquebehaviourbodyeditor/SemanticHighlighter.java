@@ -21,7 +21,7 @@ public class SemanticHighlighter {
 
     public List<TextRange> getUMLTypeRanges(String text, LanguageDef currentLangDef) {
         List<TextRange> ranges = new ArrayList<>();
-        if (currentLangDef == null || !currentLangDef.name.equals("C++") || dictionary.typeMembers.isEmpty()) {
+        if (currentLangDef == null || !currentLangDef.name.equals("CPP") || dictionary.typeMembers.isEmpty()) {
             return ranges;
         }
         
@@ -39,7 +39,7 @@ public class SemanticHighlighter {
 
     public List<TextRange> getVariableRanges(String text, LanguageDef currentLangDef) {
         List<TextRange> ranges = new ArrayList<>();
-        if (currentLangDef == null || !currentLangDef.name.equals("C++")) return ranges;
+        if (currentLangDef == null || !currentLangDef.name.equals("CPP")) return ranges;
         
         Set<String> vars = new HashSet<>();
         vars.add("factory"); // Always highlight factory
@@ -70,7 +70,7 @@ public class SemanticHighlighter {
 
     public List<TextRange> getMethodRanges(String text, LanguageDef currentLangDef) {
         List<TextRange> ranges = new ArrayList<>();
-        if (currentLangDef == null || !currentLangDef.name.equals("C++")) return ranges;
+        if (currentLangDef == null || !currentLangDef.name.equals("CPP")) return ranges;
         
         java.util.regex.Pattern p = java.util.regex.Pattern.compile("\\b([A-Za-z0-9_]+)\\s*\\(");
         java.util.regex.Matcher m = p.matcher(text);
